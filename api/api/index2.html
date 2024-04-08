@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Display a map on a webpage</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.js"></script>
+<style>
+html, body {
+    margin: 0; 
+    padding: 0;
+    height: 100%;
+}
+
+#map { 
+    position: absolute;
+    top: 0;
+    bottom: 0; 
+    width: 100%;
+    height: 100%;
+    flex-grow:1;
+    margin-left: 300px;
+ 
+}
+#container {
+    height: 100%;
+    display: flex;
+
+
+} 
+
+/* //taki map zoom out in as a camera move ho */
+#sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 200px;
+    height: 100%;
+    background-color: #f0f0f0;
+    padding: 20px;
+    box-sizing: border-box;
+}
+button {
+    display:block;
+    margin-bottom: 15px;
+
+}
+
+</style>
+</head>
+<body>
+
+<div id = "containter">
+    
+    <div id="sidebar">
+        <button id="fly-to-comey">Fly to Comey Island</button>
+        <button id="fit-to-queens">fit to queens</button>
+        <button id="reset-view">reset</button>
+    </div>
+    <div id="map"></div>
+    
+    
+</div> 
+
+<script>
+    const INITIAL_CENTER= [-73.904540,40.678375];
+    const INITIAL_ZOOM = 9;
+	mapboxgl.accessToken = 'pk.eyJ1IjoiZ2xvYmFsdGVjaC0yMiIsImEiOiJjbHBjZzNya3YwcHVsMmpubzQ3NHVna3M2In0.9KRpoyV-Zt6quwg9qR03cg';
+    const map = new mapboxgl.Map({
+        container: 'map', // container ID
+        style:'mapbox://styles/mapbox/dark-v10',
+        
+        //center: [-73.904540,40.678375], // starting position [lng, lat]
+        //zoom: 10, // starting zoom
+        center:INITIAL_CENTER,
+        zoom:INITIAL_ZOOM,
+        projection:'globe'
+    });
+
+    //for multiple locations
+    const boroughs = [
+        {
+            name: 'aditi',
+            color: '#ebfc03',
+            lngLat: [ -74.117710,40.736739]
+         }
+    //     {
+    //         name: 'adarsh',
+    //         color: '#e303fc',
+    //         lngLat: [ 77.400597,23.235094 ]
+    //     },
+    //     {
+    //         name: 'manya',
+    //         color: '#03fcd3',
+    //         lngLat: [ 77.428102,23.253457 ]
+    //     },
+    //     {
+    //         name: 'rithika',
+    //         color: '#fc1c03',
+    //         lngLat: [ 77.420331,23.255967 ]
+    //     }
+    ];
+
+    boroughs.forEach( ({ name, color,  lngLat }) =>  {
+        const popup = new mapboxgl.Popup({ offset: 25 }).setText(name);
+
+    //add a marker 
+    new mapboxgl.Marker({
+        color,
+        scale:0.6
+    })
+        .setLngLat(lngLat)
+        .setPopup(popup)
+        .addTo(map);
+    });
+
+    // const popup = new mapboxgl.Popup({ offset: 25 }).settext('winds and waves');
+    
+    //add a marker to wind nd waves
+    // new mapboxgl.Marker()
+    //     .setLngLat([ 77.366681,23.230885])
+    //     .setPopup(popup)
+    //     .addTo(map);
+
+    map.on('load', () => {
+        //set the default atmosphere style
+        map.setFog({});
+
+        //add a source and layers for the NYC borough boundaries
+        map.addSource('borough-boundaries',{
+            type:'geojson',
+            data: "data/borough-boundaries.geojson"
+        })
+
+        //for adding color layers 
+        map.addLayer({
+            id:'borough-boundaries-fill',
+            type:'fill',
+            source:'borough-boundaries',
+            paint:{
+                'fill-color':[
+                    'match',
+                    [ 'get','boro_code'],
+                    '1',
+                    'pink',
+                    '2',
+                    'red',
+                    '3',
+                    'green',
+                    '4',
+                    'blue',
+                    '5',
+                    'orange',
+                    'steelblue'
+
+                ]
+            }
+        }, 'road-label')
+
+        //for adding boundaries
+        map.addLayer({
+            id:'borough-boundaries-line',
+            type:'line',
+            source:'borough-boundaries',
+            paint: {
+                'line-color':'white',
+                'line-width': 3,
+                'line-opacity':0.7
+            }
+        }, 'road-label')
+
+        //for boundaries  change fill to line in addLayer
+        //'line-color':'white',
+        //'line-width': 4,
+        //'line-opacity': 0.7
+
+        //popup on specific location with population
+        map.on('click',(e) => {
+            const [ selectedBorough ] = map.queryRenderedFeatures(e.point, {
+                layers: ['borough-boundaries-fill']
+            });
+
+            if (selectedBorough) {
+                const {boro_name, pop2020} = selectedBorough.properties
+                alert(`the population of ${boro_name} is ${pop2020}`);
+
+            }
+        })
+
+    
+
+    });
+    
+    //zoom to specific location
+    //fly to comey island
+    document.querySelector('#fly-to-comey').addEventListener('click', () => {
+       
+        map.flyTo({
+            center:[-73.942398,40.575853], //[lng,lad]
+            zoom:15
+        })
+    })
+
+    //reset the map view
+    document.querySelector('#reset-view').addEventListener('click', () => {
+       
+       map.flyTo({
+           center: INITIAL_CENTER,
+           zoom: INITIAL_ZOOM,
+           pitch:0
+       })
+   })
+
+   //fit to queens
+   document.querySelector('#fit-to-queens').addEventListener('click', () => {
+ 
+        map.fitBounds([
+
+            [-73.784752,40.652166], // southwestern corner of the bounds
+        
+            [-73.895988,40.764941] // northeastern corner of the bounds 
+        ]);
+
+    })
+
+</script>
+    
+</body>
+</head>
+</html>
+
+
+
+    

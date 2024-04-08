@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Display a map on a webpage</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.css" rel="stylesheet">
+<link href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.0.0/mapbox-gl.js"></script>
+<script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-directions/v4.1.1/mapbox-gl-directions.js"></script>
+<style>
+body { margin: 0; padding: 0; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+mapboxgl.accessToken = 'pk.eyJ1IjoiZ2xvYmFsdGVjaC0yMiIsImEiOiJjbHBjZzNya3YwcHVsMmpubzQ3NHVna3M2In0.9KRpoyV-Zt6quwg9qR03cg';
+const map = new mapboxgl.Map({
+    container: 'map', // container ID
+    style:'mapbox://styles/mapbox/dark-v10',
+    center: [77.410584,23.264899], // Bhopal, India coordinates [lng, lat]
+    zoom: 12 // Adjust the zoom level as needed
+});
+
+
+// Add ambulance markers for different locations
+const ambulances = [
+    {
+        name: 'Ambulance 1',
+        lngLat: [77.473834,23.194189] // Sample coordinates, replace with actual ambulance location
+    },
+    {
+        name: 'Ambulance 2',
+        lngLat: [77.478898,23.176025] // Sample coordinates, replace with actual ambulance location
+    }
+    // Add more ambulance locations as needed
+];
+
+ambulances.forEach(({ name, lngLat }) => {
+    const popup = new mapboxgl.Popup({ offset: 25 }).setText(name);
+
+new mapboxgl.Marker({
+
+    color: '#FF0000', // Red color for ambulance marker
+    scale: 0.6
+})
+    .setLngLat(lngLat)
+    .setPopup(popup)
+    .addTo(map);
+});
+
+// Add geolocate control to the map for user location
+map.addControl(
+    new mapboxgl.GeolocateControl({
+        positionOptions: {
+            enableHighAccuracy: true
+        },
+        // When active the map will receive updates to the device's location as it changes.
+        trackUserLocation: true,
+        // Draw an arrow next to the location dot to indicate which direction the device is heading.
+        showUserHeading: true
+    })
+);
+
+
+map.on('load', () => {
+    // Add a GeoJSON source with 3 points.
+    map.addSource('points', {
+        'type': 'geojson',
+        'data': {
+            'type': 'FeatureCollection',
+            'features': [
+                {
+                    'type': 'Feature',
+                    'properties': {},
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [77.473898,23.194181]
+                    }
+                },
+                {
+                    'type': 'Feature',
+                    'properties': {},
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [77.478933,23.176096]
+                    }
+                },
+                
+            ]
+        }
+    });
+    // Add a circle layer
+    map.addLayer({
+        'id': 'circle',
+        'type': 'circle',
+        'source': 'points',
+        'paint': {
+            'circle-color': '#4264fb',
+            'circle-radius': 8,
+            'circle-stroke-width': 2,
+            'circle-stroke-color': '#ffffff'
+        }
+    });
+
+    // Center the map on the coordinates of any clicked circle from the 'circle' layer.
+    map.on('click', 'circle', (e) => {
+        map.flyTo({
+            center: e.features[0].geometry.coordinates
+        });
+    });
+
+    // Change the cursor to a pointer when the it enters a feature in the 'circle' layer.
+    map.on('mouseenter', 'circle', () => {
+        map.getCanvas().style.cursor = 'pointer';
+    });
+
+    // Change it back to a pointer when it leaves.
+    map.on('mouseleave', 'circle', () => {
+        map.getCanvas().style.cursor = '';
+    });
+});
+
+// Add directions control to the map.
+const directions = new MapboxDirections({
+    accessToken: mapboxgl.accessToken,
+    unit: 'metric', // You can change this to 'imperial' if you prefer
+    profile: 'mapbox/driving', // This can be changed based on your preference
+    alternatives: true // Enables alternative routes
+
+});
+map.addControl(directions, 'top-left');
+
+// Listen for the route event to zoom to the direction
+directions.on('route', (e) => {
+    if (e.route && e.route.length) {
+        const coordinates = e.route[0].geometry.coordinates;
+        const bounds = coordinates.reduce((bounds, coord) => {
+            return bounds.extend(coord);
+        }, new mapboxgl.LngLatBounds(coordinates[0], coordinates[0]));
+
+        map.fitBounds(bounds, { padding: 50 });
+    }
+});
+
+</script>
+</body>
+</html>
